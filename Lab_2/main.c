@@ -50,22 +50,16 @@ void wave(int Nx, int Ny, int Nt) {
              sin(2 * M_PI * F0 * (T * t - T0)) * t * t;
 
         for (int i = 1; i < Ny - 1; ++i) {
-            register double Uleft = tmpCur[-1];
-
-            Ucur = tmpCur[0];
-
             for (register int j = 1; j < Nx - 1; ++j) {
-                register double Uright = tmpCur[1];
+                Ucur = tmpCur[0];
                 *tmpPrev = 2 * Ucur - *tmpPrev +
-                           ((Uright - Ucur) * (tmpP[-Nx] + tmpP[0]) +
-                            (Uleft - Ucur) * (tmpP[-Nx - 1] + tmpP[-1])) * h2x2t2 +
+                           ((tmpCur[1] - Ucur) * (tmpP[-Nx] + tmpP[0]) +
+                            (tmpCur[-1] - Ucur) * (tmpP[-Nx - 1] + tmpP[-1])) * h2x2t2 +
                            ((tmpCur[Nx] - Ucur) * (tmpP[-1] + tmpP[0]) +
                             (tmpCur[-Nx] - Ucur) * (tmpP[-Nx - 1] + tmpP[-Nx])) * h2y2t2;
                 tmpPrev++;
                 tmpCur++;
                 tmpP++;
-                Uleft = Ucur;
-                Ucur = Uright;
             }
 
             tmpPrev += 2;
