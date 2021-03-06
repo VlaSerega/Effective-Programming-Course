@@ -51,31 +51,33 @@ void wave(int Nx, int Ny, int Nt) {
         for (int i = 1; i < Ny - 1; ++i) {
             register double *endCur = tmpCur + Nx - 2;
             __asm__ __volatile__(".intel_syntax noprefix\n\t"
-                                 "mov rax, %3\n\t"
+                                 "mov eax, %3\n\t"
                                  "sub rax, 6\n\t"
                                  "shl rax, 3\n\t"
 
                                  "mov rbx, %1\n\t"
                                  "add rbx, rax\n\t"
 
-                                 "mov rax, %3\n\t"
+                                 "mov eax, %3\n\t"
                                  "shl rax, 3\n\t"
 
                                  "jmp .end_cycle\n\t"
                                  ".cycle:\n\t"
                                  "vmovupd ymm0, [%1 - 8]\n\t"      //U_left
                                  "vmovupd ymm1, [%1]\n\t"           //U_cur
-                                 "vinsertf128 ymm2, ymm0, [%1 + 24], 0x1\n\t"    //U_right
+                                 "vmovupd ymm2, [%1+8]\n\t"     //U_right
 
                                  "vmovupd ymm3, [%1 + rax]\n\t"     //U_low
-                                 "vmovupd ymm4, [%1 - rax]\n\t"     //U_top
+                                 "mov rcx, %1\n\t"
+                                 "sub rcx, rax\n\t"
+                                 "vmovupd ymm4, [rcx]\n\t"     //U_top
 
                                  "vmovupd ymm5, [%2]\n\t"     //P_cur
-                                 "vmovupd ymm6, [%2 - rax]\n\t"     //P_top
+                                 "mov rcx, %2\n\t"
+                                 "sub rcx, rax\n\t"
+                                 "vmovupd ymm6, [rcx]\n\t"     //P_top
                                  "vmovupd ymm7, [%2 - 8]\n\t"     //P_left
-                                 "vmovupd ymm8, [%2 - rax - 8]\n\t"     //P_top_left
-
-                                 "vmovupd ymm9, [%0]\n\t"      //U_prev
+                                 "vmovupd ymm8, [rcx - 8]\n\t"     //P_top_left
 
                                  "vsubpd ymm10, ymm2, ymm1\n\t"  //U_right - U_cur
                                  "vaddpd ymm11, ymm6, ymm5\n\t" //P_top + P_cur
@@ -84,7 +86,9 @@ void wave(int Nx, int Ny, int Nt) {
                                  "vsubpd ymm11, ymm0, ymm1\n\t"  //U_left - U_cur
                                  "vaddpd ymm12, ymm8, ymm7\n\t" //P_top_left + P_left
                                  "vfmadd231pd ymm10, ymm11, ymm12\n\t" //(U_left - U_cur) * (P_top_left + P_cur) + (U_right - U_cur) * (P_top + P_cur)
-                                 "vmulpd ymm10, ymm10, %7\n\t" //Previous result * h2x2t2   (1)
+                                 "vmovddup xmm9, %7\n\t"
+                                 "vinsertf128 ymm9, ymm9, xmm9, 0x1\n\t"
+                                 "vmulpd ymm10, ymm10, ymm9\n\t" //Previous result * h2x2t2   (1)
 
                                  "vsubpd ymm11, ymm3, ymm1\n\t"  //U_low - U_cur
                                  "vaddpd ymm12, ymm7, ymm5\n\t" //P_left + P_cur
@@ -93,12 +97,16 @@ void wave(int Nx, int Ny, int Nt) {
                                  "vsubpd ymm12, ymm4, ymm1\n\t"  //U_top - U_cur
                                  "vaddpd ymm13, ymm8, ymm6\n\t" //P_top_left + P_top
                                  "vfmadd231pd ymm11, ymm12, ymm13\n\t" //(U_top - U_cur) * (P_top_left + P_top) + (U_low - U_cur) * (P_left + P_cur)
-                                 "vmulpd ymm10, ymm11, %8\n\t"  //(1) + previous result * h2y2t2
+                                 "vmovddup xmm9, %8\n\t"
+                                 "vinsertf128 ymm9, ymm9, xmm9, 0x1\n\t"
+                                 "vfmadd231pd ymm10, ymm11, ymm9\n\t"  //(1) + previous result * h2y2t2
+
+                                 "vmovupd ymm9, [%0]\n\t"      //U_prev
 
                                  "vaddpd ymm11, ymm1, ymm1\n\t"  //2*U_cur
                                  "vsubpd ymm11, ymm11, ymm9\n\t"
                                  "vaddpd ymm10, ymm11, ymm10\n\t"
-                                 "vmovupd %0, ymm10\n\r"
+                                 "vmovupd [%0], ymm10\n\r"
 
                                  "add %0, 32\n\t"
                                  "add %1, 32\n\t"
@@ -110,8 +118,8 @@ void wave(int Nx, int Ny, int Nt) {
 
                                  ".att_syntax \n\t"
             : "=r"(tmpPrev), "=r"(tmpCur), "=r"(tmpP)
-            :"r"(Nx), "0"(tmpPrev), "1"(tmpCur), "2"(tmpP), "r"(h2x2t2), "r"(h2y2t2)
-            : "rax", "rbx", "ymm1", "ymm2", "ymm3"
+            :"r"(Nx), "0"(tmpPrev), "1"(tmpCur), "2"(tmpP), "x"(h2x2t2), "x"(h2y2t2)
+            : "rax", "rbx", "rcx", "ymm0", "ymm1", "ymm2", "ymm3", "ymm4", "ymm5", "ymm6", "ymm7", "ymm8", "ymm9", "ymm10", "ymm11", "ymm12", "ymm13"
             );
 
             while (tmpCur != endCur) {
