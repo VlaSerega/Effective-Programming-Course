@@ -17,7 +17,7 @@
 
 #define Y 4.0f
 
-void count_line(double *U_cur, double *U_prev, double *P, int Nx, int i, double h2x2t2, double h2y2t2) {
+void __attribute__ ((noinline)) count_line(double *U_cur, double *U_prev, double *P, int Nx, int i, double h2x2t2, double h2y2t2) {
     register double *tmpPrev = U_prev + Nx * i + 1;
     register double *tmpCur = U_cur + Nx * i + 1;
     register double *tmpP = P + Nx * i + 1;
