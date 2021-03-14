@@ -32,16 +32,17 @@ void wave(int Nx, int Ny, int Nt) {
     double *U_cur = (double *) _mm_malloc(sizeof(double) * rowLength * 4 * Ny, 32);
     double *P = (double *) _mm_malloc(sizeof(double) * rowLength * Ny, 32);
 
+
     for (int i = 0; i < Ny; ++i) {
         for (int j = 0; j < Nx; ++j) {
-            U_cur[i * Nx + j] = 0.0f;
-            U_prev[i * Nx + j] = 0.0f;
-            P[i * Nx + j] = j < Nx / 2 ? 0.01 : 0.04;
+            U_cur[i * rowLength + j] = 0.0f;
+            U_prev[i * rowLength + j] = 0.0f;
+            P[i * rowLength + j] = j < rowLength / 2 ? 0.01 : 0.04;
         }
     }
 
     for (int T = 0; T < Nt; ++T) {
-        double save = U_prev[Sy * Nx + Sx];
+        double save = U_prev[Sy * rowLength + Sx];
         register double Ucur;
 
         ft = exp(-(2 * M_PI * F0 * (T * t - T0)) * (2 * M_PI * F0 * (T * t - T0)) / (Y * Y)) *
@@ -53,13 +54,13 @@ void wave(int Nx, int Ny, int Nt) {
             tmpP = P + rowLength * i + 1;
             register double *endCur = tmpCur + rowLength - 1;
 
-            for (int j = 0; j < 3 && j < Nx; ++j) {
+            for (int j = 0; j < 3 && j < Nx - 1; ++j) {
                 Ucur = tmpCur[0];
                 *tmpPrev = 2 * Ucur - *tmpPrev +
-                           ((tmpCur[1] - Ucur) * (tmpP[-Nx] + tmpP[0]) +
-                            (tmpCur[-1] - Ucur) * (tmpP[-Nx - 1] + tmpP[-1])) * h2x2t2 +
-                           ((tmpCur[Nx] - Ucur) * (tmpP[-1] + tmpP[0]) +
-                            (tmpCur[-Nx] - Ucur) * (tmpP[-Nx - 1] + tmpP[-Nx])) * h2y2t2;
+                           ((tmpCur[1] - Ucur) * (tmpP[-rowLength] + tmpP[0]) +
+                            (tmpCur[-1] - Ucur) * (tmpP[-rowLength - 1] + tmpP[-1])) * h2x2t2 +
+                           ((tmpCur[rowLength] - Ucur) * (tmpP[-1] + tmpP[0]) +
+                            (tmpCur[-rowLength] - Ucur) * (tmpP[-rowLength - 1] + tmpP[-rowLength])) * h2y2t2;
                 tmpPrev++;
                 tmpCur++;
                 tmpP++;
@@ -82,11 +83,11 @@ void wave(int Nx, int Ny, int Nt) {
 
                                  "movd xmm13, %5\n\t"
                                  "movddup xmm13, xmm13\n\t"
-                                 "vmovddup ymm13, ymm13\n\t"
+                                 "vinsertf128 ymm13, ymm13, xmm13, 0x1\n\t"
 
                                  "movd xmm14, %6\n\t"
                                  "movddup xmm14, xmm14\n\t"
-                                 "vmovddup ymm14, ymm14\n\t"
+                                 "vinsertf128 ymm14, ymm14, xmm14, 0x1\n\t"
 
                                  "jmp .end_cycle\n\t"
                                  ".cycle:\n\t"
@@ -131,7 +132,7 @@ void wave(int Nx, int Ny, int Nt) {
 
                                  "vsubpd ymm10, ymm10, ymm1\n\t"  //U_right - U_cur
                                  "vaddpd ymm3, ymm7, ymm6\n\t" //P_top + P_cur
-                                 "vmulpd ymm10, ymm10, ymm13\n\t" //(U_right - U_cur) * (P_top + P_cur)
+                                 "vmulpd ymm10, ymm10, ymm3\n\t" //(U_right - U_cur) * (P_top + P_cur)
 
                                  "vsubpd ymm9, ymm9, ymm1\n\t"  //U_left - U_cur
                                  "vaddpd ymm3, ymm12, ymm11\n\t" //P_top_left + P_left
@@ -168,33 +169,36 @@ void wave(int Nx, int Ny, int Nt) {
                                  "vmovapd ymm2, [%1+32]\n\t"
 
                                  "vmovapd ymm5, ymm6\n\t"
-                                 "vmovapd ymm6, [%2 + 32]\n\t"
+                                 "vmovapd ymm6, [%2]\n\t"
 
-                                 "vmovapd ymm7, ymm8\n\t"
-                                 "vmovapd ymm8, [rcx]\n\t"
+                                 "vmovapd ymm8, ymm7\n\t"
+                                 "vmovapd ymm7, [rcx]\n\t"
 
                                  ".end_cycle:\n\t"
                                  "cmp %1, %3\n\t"
                                  "jne .cycle\n\t"
 
                                  ".att_syntax \n\t"
-            ::"r"(tmpPrev), "r"(tmpCur), "r"(tmpP), "r"(endCur), "r"(rowLength * 8), "r"(h2x2t2), "r"(h2y2t2)
+            ::"r"(tmpPrev), "r"(tmpCur), "r"(tmpP), "r"(endCur), "r"(rowLength *
+                                                                     sizeof(double)), "r"(h2x2t2), "r"(h2y2t2)
             : "rax", "rcx", "ymm0", "ymm1", "ymm2", "ymm3", "ymm4", "ymm5", "ymm6", "ymm7", "ymm8", "ymm9", "ymm10", "ymm11", "ymm12", "ymm13", "ymm14"
             );
+
+            *(U_prev + rowLength * i + Nx - 1) = 0;
         }
 
-        Ucur = U_cur[Sy * Nx + Sx];
-        U_prev[Sy * Nx + Sx] = 2 * Ucur - save +
-                               ((U_cur[Sy * Nx + Sx + 1] - Ucur) *
-                                (P[(Sy - 1) * Nx + Sx] + P[Sy * Nx + Sx]) +
-                                (U_cur[Sy * Nx + Sx - 1] - Ucur) *
-                                (P[(Sy - 1) * Nx + Sx - 1] + P[Sy * Nx + Sx - 1])) *
-                               h2x2t2 +
-                               ((U_cur[(Sy + 1) * Nx + Sx] - Ucur) *
-                                (P[Sy * Nx + Sx - 1] + P[Sy * Nx + Sx]) +
-                                (U_cur[(Sy - 1) * Nx + Sx] - Ucur) *
-                                (P[(Sy - 1) * Nx + Sx - 1] + P[(Sy - 1) * Nx + Sx])) *
-                               h2y2t2 + ft;
+        Ucur = U_cur[Sy * rowLength + Sx];
+        U_prev[Sy * rowLength + Sx] = 2 * Ucur - save +
+                                      ((U_cur[Sy * rowLength + Sx + 1] - Ucur) *
+                                       (P[(Sy - 1) * rowLength + Sx] + P[Sy * rowLength + Sx]) +
+                                       (U_cur[Sy * rowLength + Sx - 1] - Ucur) *
+                                       (P[(Sy - 1) * rowLength + Sx - 1] + P[Sy * rowLength + Sx - 1])) *
+                                      h2x2t2 +
+                                      ((U_cur[(Sy + 1) * rowLength + Sx] - Ucur) *
+                                       (P[Sy * rowLength + Sx - 1] + P[Sy * rowLength + Sx]) +
+                                       (U_cur[(Sy - 1) * rowLength + Sx] - Ucur) *
+                                       (P[(Sy - 1) * rowLength + Sx - 1] + P[(Sy - 1) * rowLength + Sx])) *
+                                      h2y2t2 + ft;
 
         double *tmp = U_cur;
         U_cur = U_prev;
