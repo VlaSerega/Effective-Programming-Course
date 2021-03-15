@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
-#include <immintrin.h>
 
 #define Xa 0.0f
 #define Xb 4.0f
@@ -17,7 +16,8 @@
 
 #define Y 4.0f
 
-void __attribute__ ((noinline)) count_line(double *U_cur, double *U_prev, double *P, int Nx, int i, double h2x2t2, double h2y2t2) {
+void __attribute__ ((noinline))
+count_line(double *U_cur, double *U_prev, double *P, int Nx, int i, double h2x2t2, double h2y2t2) {
     register double *tmpPrev = U_prev + Nx * i + 1;
     register double *tmpCur = U_cur + Nx * i + 1;
     register double *tmpP = P + Nx * i + 1;
@@ -132,18 +132,17 @@ void wave(int Nx, int Ny, int Nt) {
     for (int T = 0; T < Nt; T += 2) {
         double save = U_prev[Sy * Nx + Sx];
         register double Ucur;
+        int i;
 
         ft = exp(-(2 * M_PI * F0 * (T * t - T0)) * (2 * M_PI * F0 * (T * t - T0)) / (Y * Y)) *
              sin(2 * M_PI * F0 * (T * t - T0)) * t * t;
 
         count_line(U_cur, U_prev, P, Nx, 1, h2x2t2, h2y2t2);
 
-        for (int i = 2; i < Ny - 1; ++i) {
+        for (i = 2; i < Sx + 1; ++i) {
             count_line(U_cur, U_prev, P, Nx, i, h2x2t2, h2y2t2);
             count_line(U_prev, U_cur, P, Nx, i - 1, h2x2t2, h2y2t2);
         }
-
-        count_line(U_prev, U_cur, P, Nx, Ny - 1, h2x2t2, h2y2t2);
 
         Ucur = U_cur[Sy * Nx + Sx];
         U_prev[Sy * Nx + Sx] = 2 * Ucur - save +
@@ -157,14 +156,39 @@ void wave(int Nx, int Ny, int Nt) {
                                 (U_cur[(Sy - 1) * Nx + Sx] - Ucur) *
                                 (P[(Sy - 1) * Nx + Sx - 1] + P[(Sy - 1) * Nx + Sx])) *
                                h2y2t2 + ft;
+
+        save = U_cur[Sy * Nx + Sx];
+
+        for (i = Sx + 1; i < Ny - 1; ++i) {
+            count_line(U_cur, U_prev, P, Nx, i, h2x2t2, h2y2t2);
+            count_line(U_prev, U_cur, P, Nx, i - 1, h2x2t2, h2y2t2);
+        }
+
+        count_line(U_prev, U_cur, P, Nx, Ny - 2, h2x2t2, h2y2t2);
+
+        ft = exp(-(2 * M_PI * F0 * ((T + 1) * t - T0)) * (2 * M_PI * F0 * ((T + 1) * t - T0)) / (Y * Y)) *
+             sin(2 * M_PI * F0 * ((T + 1) * t - T0)) * t * t;
+
+        Ucur = U_prev[Sy * Nx + Sx];
+        U_cur[Sy * Nx + Sx] = 2 * Ucur - save +
+                              ((U_prev[Sy * Nx + Sx + 1] - Ucur) *
+                               (P[(Sy - 1) * Nx + Sx] + P[Sy * Nx + Sx]) +
+                               (U_prev[Sy * Nx + Sx - 1] - Ucur) *
+                               (P[(Sy - 1) * Nx + Sx - 1] + P[Sy * Nx + Sx - 1])) *
+                              h2x2t2 +
+                              ((U_prev[(Sy + 1) * Nx + Sx] - Ucur) *
+                               (P[Sy * Nx + Sx - 1] + P[Sy * Nx + Sx]) +
+                               (U_prev[(Sy - 1) * Nx + Sx] - Ucur) *
+                               (P[(Sy - 1) * Nx + Sx - 1] + P[(Sy - 1) * Nx + Sx])) *
+                              h2y2t2 + ft;
     }
 
     fp = fopen("new.dat", "wb");
     fwrite(U_cur, sizeof(double), Nx * Ny, fp);
     fclose(fp);
-    _mm_free(U_cur);
-    _mm_free(U_prev);
-    _mm_free(P);
+    free(U_cur);
+    free(U_prev);
+    free(P);
 }
 
 int main(int argc, char **argv) {
