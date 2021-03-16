@@ -2,14 +2,15 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <immintrin.h>
 
 #define Xa 0.0f
 #define Xb 4.0f
 #define Ya 0.0f
 #define Yb 4.0f
 
-#define Sx  1
-#define Sy  1
+#define Sx  3
+#define Sy  3
 
 #define F0  1.0f
 #define T0  1.5f
@@ -129,7 +130,7 @@ void wave(int Nx, int Ny, int Nt) {
         }
     }
 
-    for (int T = 0; T < Nt; T += 2) {
+    for (int T = 0; T < Nt; T += 3) {
         double save = U_prev[Sy * Nx + Sx];
         register double Ucur;
         int i;
@@ -138,10 +139,13 @@ void wave(int Nx, int Ny, int Nt) {
              sin(2 * M_PI * F0 * (T * t - T0)) * t * t;
 
         count_line(U_cur, U_prev, P, Nx, 1, h2x2t2, h2y2t2);
+        count_line(U_cur, U_prev, P, Nx, 2, h2x2t2, h2y2t2);
+        count_line(U_prev, U_cur, P, Nx, 1, h2x2t2, h2y2t2);
 
-        for (i = 2; i < Sx + 1; ++i) {
+        for (i = 3; i < Sx + 1; ++i) {
             count_line(U_cur, U_prev, P, Nx, i, h2x2t2, h2y2t2);
             count_line(U_prev, U_cur, P, Nx, i - 1, h2x2t2, h2y2t2);
+            count_line(U_cur, U_prev, P, Nx, i - 2, h2x2t2, h2y2t2);
         }
 
         Ucur = U_cur[Sy * Nx + Sx];
@@ -159,12 +163,9 @@ void wave(int Nx, int Ny, int Nt) {
 
         save = U_cur[Sy * Nx + Sx];
 
-        for (i = Sx + 1; i < Ny - 1; ++i) {
-            count_line(U_cur, U_prev, P, Nx, i, h2x2t2, h2y2t2);
-            count_line(U_prev, U_cur, P, Nx, i - 1, h2x2t2, h2y2t2);
-        }
-
-        count_line(U_prev, U_cur, P, Nx, Ny - 2, h2x2t2, h2y2t2);
+        count_line(U_cur, U_prev, P, Nx, Sx + 1, h2x2t2, h2y2t2);
+        count_line(U_prev, U_cur, P, Nx, Sx, h2x2t2, h2y2t2);
+        count_line(U_cur, U_prev, P, Nx, Sx - 1, h2x2t2, h2y2t2);
 
         ft = exp(-(2 * M_PI * F0 * ((T + 1) * t - T0)) * (2 * M_PI * F0 * ((T + 1) * t - T0)) / (Y * Y)) *
              sin(2 * M_PI * F0 * ((T + 1) * t - T0)) * t * t;
@@ -181,6 +182,35 @@ void wave(int Nx, int Ny, int Nt) {
                                (U_prev[(Sy - 1) * Nx + Sx] - Ucur) *
                                (P[(Sy - 1) * Nx + Sx - 1] + P[(Sy - 1) * Nx + Sx])) *
                               h2y2t2 + ft;
+
+        save = U_prev[Sy * Nx + Sx];
+
+        for (i = Sx + 2; i < Ny - 1; ++i) {
+            count_line(U_cur, U_prev, P, Nx, i, h2x2t2, h2y2t2);
+            count_line(U_prev, U_cur, P, Nx, i - 1, h2x2t2, h2y2t2);
+            count_line(U_cur, U_prev, P, Nx, i - 2, h2x2t2, h2y2t2);
+        }
+
+        count_line(U_prev, U_cur, P, Nx, Ny - 2, h2x2t2, h2y2t2);
+        count_line(U_cur, U_prev, P, Nx, Ny - 3, h2x2t2, h2y2t2);
+        count_line(U_cur, U_prev, P, Nx, Ny - 2, h2x2t2, h2y2t2);
+
+
+        ft = exp(-(2 * M_PI * F0 * ((T + 2) * t - T0)) * (2 * M_PI * F0 * ((T + 2) * t - T0)) / (Y * Y)) *
+             sin(2 * M_PI * F0 * ((T + 2) * t - T0)) * t * t;
+
+        Ucur = U_cur[Sy * Nx + Sx];
+        U_prev[Sy * Nx + Sx] = 2 * Ucur - save +
+                               ((U_cur[Sy * Nx + Sx + 1] - Ucur) *
+                                (P[(Sy - 1) * Nx + Sx] + P[Sy * Nx + Sx]) +
+                                (U_cur[Sy * Nx + Sx - 1] - Ucur) *
+                                (P[(Sy - 1) * Nx + Sx - 1] + P[Sy * Nx + Sx - 1])) *
+                               h2x2t2 +
+                               ((U_cur[(Sy + 1) * Nx + Sx] - Ucur) *
+                                (P[Sy * Nx + Sx - 1] + P[Sy * Nx + Sx]) +
+                                (U_cur[(Sy - 1) * Nx + Sx] - Ucur) *
+                                (P[(Sy - 1) * Nx + Sx - 1] + P[(Sy - 1) * Nx + Sx])) *
+                               h2y2t2 + ft;
     }
 
     fp = fopen("new.dat", "wb");
