@@ -147,27 +147,47 @@ void wave(int Nx, int Ny, int Nt) {
         }
     }
 
-    for (int T = 0; T < Nt; T += 3) {
+    for (int T = 0; T < Nt; T += 5) {
         double ft1 = exp(-(2 * M_PI * F0 * (T * t - T0)) * (2 * M_PI * F0 * (T * t - T0)) / (Y * Y)) *
                      sin(2 * M_PI * F0 * (T * t - T0)) * t * t;
         double ft2 = exp(-(2 * M_PI * F0 * ((T + 1) * t - T0)) * (2 * M_PI * F0 * ((T + 1) * t - T0)) / (Y * Y)) *
                      sin(2 * M_PI * F0 * ((T + 1) * t - T0)) * t * t;
         double ft3 = exp(-(2 * M_PI * F0 * ((T + 2) * t - T0)) * (2 * M_PI * F0 * ((T + 2) * t - T0)) / (Y * Y)) *
                      sin(2 * M_PI * F0 * ((T + 2) * t - T0)) * t * t;
+        double ft4 = exp(-(2 * M_PI * F0 * ((T + 3) * t - T0)) * (2 * M_PI * F0 * ((T + 3) * t - T0)) / (Y * Y)) *
+                     sin(2 * M_PI * F0 * ((T + 3) * t - T0)) * t * t;
+        double ft5 = exp(-(2 * M_PI * F0 * ((T + 4) * t - T0)) * (2 * M_PI * F0 * ((T + 4) * t - T0)) / (Y * Y)) *
+                     sin(2 * M_PI * F0 * ((T + 4) * t - T0)) * t * t;
 
         count_line(U_cur, U_prev, P, Nx, 1, h2x2t2, h2y2t2, ft1);
         count_line(U_cur, U_prev, P, Nx, 2, h2x2t2, h2y2t2, ft1);
         count_line(U_prev, U_cur, P, Nx, 1, h2x2t2, h2y2t2, ft2);
+        count_line(U_cur, U_prev, P, Nx, 3, h2x2t2, h2y2t2, ft1);
+        count_line(U_prev, U_cur, P, Nx, 2, h2x2t2, h2y2t2, ft2);
+        count_line(U_cur, U_prev, P, Nx, 1, h2x2t2, h2y2t2, ft3);
+        count_line(U_cur, U_prev, P, Nx, 4, h2x2t2, h2y2t2, ft1);
+        count_line(U_prev, U_cur, P, Nx, 3, h2x2t2, h2y2t2, ft2);
+        count_line(U_cur, U_prev, P, Nx, 2, h2x2t2, h2y2t2, ft3);
+        count_line(U_prev, U_cur, P, Nx, 1, h2x2t2, h2y2t2, ft4);
 
-        for (int i = 3; i < Nx - 1; ++i) {
+        for (int i = 5; i < Nx - 1; ++i) {
             count_line(U_cur, U_prev, P, Nx, i, h2x2t2, h2y2t2, ft1);
             count_line(U_prev, U_cur, P, Nx, i - 1, h2x2t2, h2y2t2, ft2);
             count_line(U_cur, U_prev, P, Nx, i - 2, h2x2t2, h2y2t2, ft3);
+            count_line(U_prev, U_cur, P, Nx, i - 3, h2x2t2, h2y2t2, ft4);
+            count_line(U_cur, U_prev, P, Nx, i - 4, h2x2t2, h2y2t2, ft5);
         }
 
         count_line(U_prev, U_cur, P, Nx, Ny - 2, h2x2t2, h2y2t2, ft2);
         count_line(U_cur, U_prev, P, Nx, Ny - 3, h2x2t2, h2y2t2, ft3);
+        count_line(U_prev, U_cur, P, Nx, Ny - 4, h2x2t2, h2y2t2, ft4);
+        count_line(U_cur, U_prev, P, Nx, Ny - 5, h2x2t2, h2y2t2, ft5);
         count_line(U_cur, U_prev, P, Nx, Ny - 2, h2x2t2, h2y2t2, ft3);
+        count_line(U_prev, U_cur, P, Nx, Ny - 3, h2x2t2, h2y2t2, ft4);
+        count_line(U_cur, U_prev, P, Nx, Ny - 4, h2x2t2, h2y2t2, ft5);
+        count_line(U_prev, U_cur, P, Nx, Ny - 2, h2x2t2, h2y2t2, ft4);
+        count_line(U_cur, U_prev, P, Nx, Ny - 3, h2x2t2, h2y2t2, ft5);
+        count_line(U_cur, U_prev, P, Nx, Ny - 2, h2x2t2, h2y2t2, ft5);
 
         double *tmp = U_cur;
         U_cur = U_prev;
