@@ -9,13 +9,17 @@
 #define Ya 0.0f
 #define Yb 4.0f
 
-#define Sx  200
-#define Sy  200
+#define Sx  1
+#define Sy  1
 
 #define F0  1.0f
 #define T0  1.5f
 
 #define Y 4.0f
+
+#define FTYPE double
+#define VECTOR_SIZE 32
+typedef FTYPE vec __attribute__ ((vector_size (VECTOR_SIZE)));
 
 static void
 count_line(const double *U_cur, double *U_prev, const double *P, int count, int ld, double h2x2t2, double h2y2t2) {
@@ -127,13 +131,13 @@ void wave(int Nx, int Ny, int Nt) {
 
 #pragma omp parallel
     {
+
         int count = (Nx - 2) / omp_get_num_threads() + ((Nx - 2) % omp_get_num_threads() > omp_get_thread_num());
         int shift =
                 ((Nx - 2) / omp_get_num_threads()) * omp_get_thread_num() +
                 ((Nx - 2) % omp_get_num_threads() > omp_get_thread_num() ? omp_get_thread_num() :
                  (Nx - 2) % omp_get_num_threads());
 
-        printf("%d %d %d\n", omp_get_thread_num(), count, shift);
         for (int T = 0; T < Nt; T++) {
             double *tmpUcur = U_cur + shift + Nx + 1;
             double *tmpUprev = U_prev + shift + Nx + 1;
@@ -145,10 +149,9 @@ void wave(int Nx, int Ny, int Nt) {
                 tmpUcur += Nx;
                 tmpUprev += Nx;
                 tmpP += Nx;
-                printf("%ld %ld\n", (tmpUcur - U_cur) / Nx, (tmpUcur - U_cur) % Nx);
             }
-
-#pragma omp single
+#pragma omp barrier
+#pragma omp master
             {
                 double ft = exp(-(2 * M_PI * F0 * (T * t - T0)) * (2 * M_PI * F0 * (T * t - T0)) / (Y * Y)) *
                             sin(2 * M_PI * F0 * (T * t - T0)) * t * t;
@@ -174,7 +177,7 @@ void wave(int Nx, int Ny, int Nt) {
         }
     }
 
-    fp = fopen("new.dat", "wb");
+    fp = fopen("../new.dat", "wb");
     fwrite(U_cur, sizeof(double), Nx * Ny, fp);
     fclose(fp);
     free(U_cur);
