@@ -17,9 +17,11 @@
 
 #define Y 4.0f
 
-#define FTYPE double
-#define VECTOR_SIZE 32
-typedef FTYPE vec __attribute__ ((vector_size (VECTOR_SIZE)));
+//#define FTYPE double
+//#define VECTOR_SIZE 32
+//typedef FTYPE vec __attribute__ ((vector_size (VECTOR_SIZE)))
+
+int counter = 0;
 
 static void
 count_line(const double *U_cur, double *U_prev, const double *P, int count, int ld, double h2x2t2, double h2y2t2) {
@@ -151,8 +153,8 @@ void wave(int Nx, int Ny, int Nt) {
                 tmpP += Nx;
             }
 #pragma omp barrier
-#pragma omp master
-            {
+            if (shift <= Sx && Sx < count + shift) {
+
                 double ft = exp(-(2 * M_PI * F0 * (T * t - T0)) * (2 * M_PI * F0 * (T * t - T0)) / (Y * Y)) *
                             sin(2 * M_PI * F0 * (T * t - T0)) * t * t;
                 register double Ucur;
@@ -169,9 +171,13 @@ void wave(int Nx, int Ny, int Nt) {
                                         (U_cur[(Sy - 1) * Nx + Sx] - Ucur) *
                                         (P[(Sy - 1) * Nx + Sx - 1] + P[(Sy - 1) * Nx + Sx])) *
                                        h2y2t2 + ft;
+
+                printf("%d %lf\n", counter, ft);
+
                 double *tmp = U_cur;
                 U_cur = U_prev;
                 U_prev = tmp;
+                counter += 1;
             }
 #pragma omp barrier
         }
