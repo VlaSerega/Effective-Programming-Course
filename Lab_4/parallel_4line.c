@@ -130,7 +130,7 @@ count_line(double *U_cur, double *U_prev, double *P, int ld, int shift, int coun
 
 void step_initialize(double *U_cur, double *U_prev, double *P, int ld, int shift, int i, double h2x2t2,
                      double h2y2t2, double ft2, double ft3, double ft4) {
-    printf("%d %d %d\n", omp_get_thread_num(), shift - 1 < 1 ? 1 : shift - 1, shift - 1 < 1 ? 1 : 2);
+    printf("init %d %d %d\n", omp_get_thread_num(), shift - 1 < 1 ? 1 : shift - 1, shift - 1 < 1 ? 1 : 2);
     count_line(U_prev, U_cur, P, ld, shift - 1 < 1 ? 1 : shift - 1, shift - 1 < 1 ? 1 : 2, i - 1, h2x2t2,
                h2y2t2, ft2);
     count_line(U_cur, U_prev, P, ld, shift - 2 < 1 ? 1 : shift - 2, shift - 2 < 1 ? 2 : 4, i - 2, h2x2t2,
@@ -147,7 +147,7 @@ step_main(double *U_cur, double *U_prev, double *P, int ld, int shift, int count
     } else {
         count = count - 6;
     }
-    printf("%d %d %d\n", omp_get_thread_num(), shift, count);
+    printf("main %d %d %d\n", omp_get_thread_num(), shift, count);
     count_line(U_cur, U_prev, P, ld, shift, count - 3, i, h2x2t2, h2y2t2, ft1);
     count_line(U_prev, U_cur, P, ld, shift + 1, count, i - 1, h2x2t2, h2y2t2, ft2);
     count_line(U_cur, U_prev, P, ld, shift + 2, count, i - 2, h2x2t2, h2y2t2, ft3);
@@ -164,7 +164,7 @@ step_final(double *U_cur, double *U_prev, double *P, int ld, int shift, int coun
         shift = shift + count - 6;
         count = 6;
     }
-    printf("%d %d %d\n", omp_get_thread_num(), shift, count);
+    printf("final %d %d %d\n", omp_get_thread_num(), shift, count);
     count_line(U_cur, U_prev, P, ld, shift, count, i, h2x2t2, h2y2t2, ft1);
     count_line(U_prev, U_cur, P, ld, shift, count % 2 ? count - 1 : count - 2, i - 1, h2x2t2, h2y2t2, ft2);
     count_line(U_cur, U_prev, P, ld, shift, count % 2 ? count - 2 : count - 4, i - 2, h2x2t2, h2y2t2, ft3);
@@ -195,7 +195,7 @@ void wave(int Nx, int Ny, int Nt) {
                 ((Nx - 2) / omp_get_num_threads()) * omp_get_thread_num() +
                 ((Nx - 2) % omp_get_num_threads() > omp_get_thread_num() ? omp_get_thread_num() :
                  (Nx - 2) % omp_get_num_threads()) + 1;
-
+        printf("start %d %d %d\n", omp_get_thread_num(), shift, count);
         for (int T = 0; T < Nt; T += 4) {
             double ft1 = exp(-(2 * M_PI * F0 * (T * t - T0)) * (2 * M_PI * F0 * (T * t - T0)) / (Y * Y)) *
                          sin(2 * M_PI * F0 * (T * t - T0)) * t * t;
@@ -221,10 +221,12 @@ void wave(int Nx, int Ny, int Nt) {
 
             for (int i = 4; i < Ny - 1; ++i) {
                 step_initialize(U_cur, U_prev, P, Nx, shift, i, h2x2t2, h2y2t2, ft2, ft3, ft4);
+#pragma omp barrier
                 step_main(U_cur, U_prev, P, Nx, shift, count, i, h2x2t2, h2y2t2, ft1, ft2, ft3, ft4);
 #pragma omp barrier
                 step_final(U_cur, U_prev, P, Nx, shift, count, i, h2x2t2, h2y2t2, ft1, ft2, ft3);
 #pragma omp barrier
+                exit(0);
             }
 
             count_line(U_prev, U_cur, P, Nx, shift, count, Ny - 2, h2x2t2, h2y2t2, ft2);
