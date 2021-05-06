@@ -5,6 +5,6 @@ SET(GCC_COVERAGE_COMPILE_FLAGS "-march=native -mavx -fopenmp")
 set(CMAKE_C_STANDARD 11)
 SET(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
 
-add_executable(Lab_4 parallel_4line.c)
+add_executable(Lab_4 pair_lock.c)
 
 target_link_libraries(Lab_4 PRIVATE m)
